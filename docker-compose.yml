@@ -1,0 +1,58 @@
+services:
+  lb:
+    image: ${DOCKERHUB_USER}/todo-lb:latest
+    ports: ["80:8080"]
+    networks: [frontend_net]
+    depends_on: [frontend, api]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/lb-health"]
+      interval: 10s
+
+  frontend:
+    image: ${DOCKERHUB_USER}/todo-frontend:latest
+    networks: [frontend_net]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/"]
+      interval: 10s
+
+  api:
+    image: ${DOCKERHUB_USER}/todo-api:latest
+    # Inga ports: och inget container_name, annars går det inte att skala
+    environment:
+      DB_HOST: db
+      DB_USER: todo
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: todos
+    networks: [frontend_net, backend_net]
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  db:
+    image: postgres:16-alpine
+    user: postgres            # kör aldrig som root
+    environment:
+      POSTGRES_USER: todo
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: todos
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [backend_net]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todo -d todos"]
+      interval: 5s
+      retries: 5
+
+networks:
+  frontend_net:
+  backend_net:
+
+volumes:
+  pgdata:

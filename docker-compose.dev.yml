@@ -1,0 +1,6 @@
+# Används bara lokalt för att bygga images:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml build
+services:
+  lb:       { build: ./lb }
+  frontend: { build: ./frontend }
+  api:      { build: ./api }
